@@ -85,7 +85,7 @@ InitUGPlugin_LuaShell(Registry* reg, string grp)
 	typedef LuaShell::LuaShell	T;
 	reg->add_class_<T>("LuaShell", grp)
 		.add_constructor()
-		.add_method("run", &T::run)
+		.add_method("run", &T::run, "", "code|silent")
 		.add_method("set", static_cast<void (T::*)(const char*, double)>(&T::set))
 		.add_method("get_number", &T::get_number)
 		.set_construct_as_smart_pointer(true);
