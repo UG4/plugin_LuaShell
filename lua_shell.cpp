@@ -50,6 +50,12 @@ class LuaShell{
 			}
 		}
 
+		void set(const char* name, int value)
+		{
+			lua_pushnumber(m_luaState, value);
+			lua_setglobal(m_luaState, name);
+		}
+
 	private:
 		lua_State* m_luaState;
 };
@@ -67,6 +73,7 @@ InitUGPlugin_LuaShell(Registry* reg, string grp)
 	reg->add_class_<T>("LuaShell", grp)
 		.add_constructor()
 		.add_method("run", &T::run)
+		.add_method("set", static_cast<void (T::*)(const char*, int)>(&T::set))
 		.set_construct_as_smart_pointer(true);
 
 }
