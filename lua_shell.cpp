@@ -25,6 +25,10 @@ class LuaShell{
 		{
 		//	instead of the global lua state, one could also use a local one		
 			m_luaState = GetDefaultLuaState();
+		// replace LUAs print function with our own, to use UG_LOG
+			lua_register(m_luaState, "print", UGLuaPrint );
+			lua_register(m_luaState, "print_all", UGLuaPrintAllProcs );
+			lua_register(m_luaState, "write", UGLuaWrite );
 		}
 
 		void run(const char* buffer)
