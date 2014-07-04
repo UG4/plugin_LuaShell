@@ -50,10 +50,19 @@ class LuaShell{
 			}
 		}
 
-		void set(const char* name, int value)
+		void set(const char* name, double value)
 		{
 			lua_pushnumber(m_luaState, value);
 			lua_setglobal(m_luaState, name);
+		}
+
+		double get_number(const char* name)
+		{
+			lua_getglobal(m_luaState, name);
+			if(lua_isnumber(m_luaState, -1))
+				return lua_tonumber(m_luaState, -1);
+			lua_pop(m_luaState, 1);
+			UG_THROW("LuaShell error: Couldn't convert " << name << " to number.");
 		}
 
 	private:
@@ -73,7 +82,8 @@ InitUGPlugin_LuaShell(Registry* reg, string grp)
 	reg->add_class_<T>("LuaShell", grp)
 		.add_constructor()
 		.add_method("run", &T::run)
-		.add_method("set", static_cast<void (T::*)(const char*, int)>(&T::set))
+		.add_method("set", static_cast<void (T::*)(const char*, double)>(&T::set))
+		.add_method("get_number", &T::get_number)
 		.set_construct_as_smart_pointer(true);
 
 }
