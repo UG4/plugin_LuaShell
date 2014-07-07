@@ -2,10 +2,12 @@
 #include "bridge/util.h"
 #include "registry/registry.h"
 #include "bindings/lua/lua_util.h"
+#include "bindings/lua/lua_parsing.h"
 #include "common/profiler/profiler.h"
 
 using namespace std;
 using namespace ug::bridge;
+using namespace ug::bridge::lua;
 using namespace ug::script;
 
 namespace ug{
@@ -52,21 +54,28 @@ class LuaShell{
 				else
 					throw(LuaError());
 			}
+			lua_pop(m_luaState, 1);
 		}
 
-		void set(const char* name, double value)
+		template <class TVal>
+		void set(const char* name, TVal value)
 		{
-			lua_pushnumber(m_luaState, value);
+			LuaParsing<TVal>::push(m_luaState, value);
 			lua_setglobal(m_luaState, name);
 		}
 
-		double get_number(const char* name)
+		template <class TVal>
+		TVal get(const char* name)
 		{
 			lua_getglobal(m_luaState, name);
-			if(lua_isnumber(m_luaState, -1))
-				return lua_tonumber(m_luaState, -1);
+			if(!LuaParsing<TVal>::check(m_luaState, -1)){
+				lua_pop(m_luaState, 1);
+				UG_THROW("LuaShell error: Couldn't convert " << name << " to requested type.");
+			}
+
+			TVal val = LuaParsing<TVal>::get(m_luaState, -1);
 			lua_pop(m_luaState, 1);
-			UG_THROW("LuaShell error: Couldn't convert " << name << " to number.");
+			return val;
 		}
 
 	private:
@@ -85,9 +94,15 @@ InitUGPlugin_LuaShell(Registry* reg, string grp)
 	typedef LuaShell::LuaShell	T;
 	reg->add_class_<T>("LuaShell", grp)
 		.add_constructor()
-		.add_method("run", &T::run, "", "code|silent")
-		.add_method("set", static_cast<void (T::*)(const char*, double)>(&T::set))
-		.add_method("get_number", &T::get_number)
+		.add_method("run", &T::run)
+		.add_method("set", static_cast<void (T::*)(const char*, double)>(&T::set<double>))
+		.add_method("set", static_cast<void (T::*)(const char*, bool)>(&T::set<bool>))
+		.add_method("set", static_cast<void (T::*)(const char*, const char*)>(&T::set<const char*>))
+		.add_method("set", static_cast<void (T::*)(const char*, std::string)>(&T::set<std::string>))
+		.add_method("set", static_cast<void (T::*)(const char*, const std::string&)>(&T::set<const std::string&>))
+		.add_method("get_number", &T::get<double>)
+		.add_method("get_bool", &T::get<bool>)
+		.add_method("get_string", &T::get<std::string>)
 		.set_construct_as_smart_pointer(true);
 
 }
