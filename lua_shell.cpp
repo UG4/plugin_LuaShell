@@ -116,6 +116,8 @@ InitUGPlugin_LuaShell(Registry* reg, string grp)
 	using namespace LuaShell;
 	grp.append("LuaShell");
 
+	RegisterDefaultLuaBridge(reg);
+	
 	typedef LuaShell::LuaShell	T;
 	reg->add_class_<T>("LuaShell", grp)
 		.add_constructor()
