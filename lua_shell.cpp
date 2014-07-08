@@ -4,6 +4,7 @@
 #include "bindings/lua/lua_util.h"
 #include "bindings/lua/lua_parsing.h"
 #include "common/profiler/profiler.h"
+#include "registry/class_name_provider.h"
 
 using namespace std;
 using namespace ug::bridge;
@@ -64,8 +65,32 @@ class LuaShell{
 			lua_setglobal(m_luaState, name);
 		}
 
+		void set(const char* name, void* pval, const char* className)
+		{
+			LuaParsing<void*>::push(m_luaState, pval, className);
+			lua_setglobal(m_luaState, name);
+		}
+
+		void set(const char* name, const void* pval, const char* className)
+		{
+			LuaParsing<const void*>::push(m_luaState, pval, className);
+			lua_setglobal(m_luaState, name);
+		}
+
+		void set(const char* name, SmartPtr<void> pval, const char* className)
+		{
+			LuaParsing<SmartPtr<void> >::push(m_luaState, pval, className);
+			lua_setglobal(m_luaState, name);
+		}
+
+		void set(const char* name, ConstSmartPtr<void> pval, const char* className)
+		{
+			LuaParsing<ConstSmartPtr<void> >::push(m_luaState, pval, className);
+			lua_setglobal(m_luaState, name);
+		}
+
 		template <class TVal>
-		TVal get(const char* name)
+		TVal get_val(const char* name)
 		{
 			lua_getglobal(m_luaState, name);
 			if(!LuaParsing<TVal>::check(m_luaState, -1)){
@@ -100,11 +125,14 @@ InitUGPlugin_LuaShell(Registry* reg, string grp)
 		.add_method("set", static_cast<void (T::*)(const char*, const char*)>(&T::set<const char*>))
 		.add_method("set", static_cast<void (T::*)(const char*, std::string)>(&T::set<std::string>))
 		.add_method("set", static_cast<void (T::*)(const char*, const std::string&)>(&T::set<const std::string&>))
-		.add_method("get_number", &T::get<double>)
-		.add_method("get_bool", &T::get<bool>)
-		.add_method("get_string", &T::get<std::string>)
+		.add_method("set", static_cast<void (T::*)(const char*, void*, const char*)>(&T::set))
+		.add_method("set", static_cast<void (T::*)(const char*, const void*, const char*)>(&T::set))
+		.add_method("set", static_cast<void (T::*)(const char*, SmartPtr<void>, const char*)>(&T::set))
+		.add_method("set", static_cast<void (T::*)(const char*, ConstSmartPtr<void>, const char*)>(&T::set))
+		.add_method("get_number", &T::get_val<double>)
+		.add_method("get_bool", &T::get_val<bool>)
+		.add_method("get_string", &T::get_val<std::string>)
 		.set_construct_as_smart_pointer(true);
-
 }
 
 }// namespace ug
