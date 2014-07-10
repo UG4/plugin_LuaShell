@@ -32,6 +32,10 @@ class LuaShell{
 			lua_register(m_luaState, "print", UGLuaPrint );
 			lua_register(m_luaState, "print_all", UGLuaPrintAllProcs );
 			lua_register(m_luaState, "write", UGLuaWrite );
+
+		//	todo: allow for argv arguments
+			char* argv = 0;
+			SetLuaUGArgs(m_luaState, 0, &argv, 0, 0);
 		}
 
 		void run(const char* buffer)
