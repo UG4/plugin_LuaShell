@@ -12,7 +12,7 @@ using namespace ug::bridge::lua;
 using namespace ug::script;
 
 namespace ug{
-namespace LuaShell{
+namespace luashell{
 
 /// error function to be used for lua_pcall
 int LuaCallStackError( lua_State *L )
@@ -117,12 +117,12 @@ class LuaShell{
 extern "C" void
 InitUGPlugin_LuaShell(Registry* reg, string grp)
 {
-	using namespace LuaShell;
+	using namespace luashell;
 	grp.append("LuaShell");
 
 	RegisterDefaultLuaBridge(reg);
 	
-	typedef LuaShell::LuaShell	T;
+	typedef LuaShell	T;
 	reg->add_class_<T>("LuaShell", grp)
 		.add_constructor()
 		.add_method("run", &T::run)
