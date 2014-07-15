@@ -26,16 +26,13 @@ class LuaShell{
 	public:
 		LuaShell()
 		{
-		//	instead of the global lua state, one could also use a local one		
-			m_luaState = GetDefaultLuaState();
-		// replace LUAs print function with our own, to use UG_LOG
-			lua_register(m_luaState, "print", UGLuaPrint );
-			lua_register(m_luaState, "print_all", UGLuaPrintAllProcs );
-			lua_register(m_luaState, "write", UGLuaWrite );
+			init_lua_state();
+		}
 
-		//	todo: allow for argv arguments
-			char* argv = 0;
-			SetLuaUGArgs(m_luaState, 0, &argv, 0, 0);
+		void reset()
+		{
+			ReleaseDefaultLuaState();
+			init_lua_state();
 		}
 
 		void run(const char* buffer)
@@ -109,6 +106,20 @@ class LuaShell{
 
 	private:
 		lua_State* m_luaState;
+
+		void init_lua_state()
+		{
+		//	instead of the global lua state, one could also use a local one		
+			m_luaState = GetDefaultLuaState();
+		//	replace LUAs print function with our own, to use UG_LOG
+			lua_register(m_luaState, "print", UGLuaPrint );
+			lua_register(m_luaState, "print_all", UGLuaPrintAllProcs );
+			lua_register(m_luaState, "write", UGLuaWrite );
+
+		//	todo: allow for argv arguments
+			char* argv = 0;
+			SetLuaUGArgs(m_luaState, 0, &argv, 0, 0);
+		}
 };
 
 }// namespace LuaShell
@@ -125,6 +136,7 @@ InitUGPlugin_LuaShell(Registry* reg, string grp)
 	typedef LuaShell	T;
 	reg->add_class_<T>("LuaShell", grp)
 		.add_constructor()
+		.add_method("reset", &T::reset)
 		.add_method("run", &T::run)
 		.add_method("set", static_cast<void (T::*)(const char*, double)>(&T::set<double>))
 		.add_method("set", static_cast<void (T::*)(const char*, bool)>(&T::set<bool>))
