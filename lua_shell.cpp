@@ -5,6 +5,7 @@
 #include "bindings/lua/lua_parsing.h"
 #include "common/profiler/profiler.h"
 #include "registry/class_name_provider.h"
+#include "ug.h"
 
 using namespace std;
 using namespace ug::bridge;
@@ -40,12 +41,19 @@ class LuaShell{
 			PROFILE_FUNC();
 			lua_State* L = m_luaState;
 
+			ClearAbortRunFlag();
 			lua_pushcfunction(L, LuaCallStackError);
 
 			int error = luaL_loadbuffer(L, buffer, strlen(buffer), "luashell-run-buffer");
 
-			if(error == 0){
-				error = lua_pcall(L, 0, 0, -2);
+			try{
+				if(error == 0){
+					error = lua_pcall(L, 0, 0, -2);
+				}
+			}
+			catch(SoftAbort& err){
+				UG_LOG("Execution of LuaShell::run aborted with the following message:\n")
+				UG_LOG(err.get_msg() << std::endl);
 			}
 
 			if(error){
@@ -57,6 +65,11 @@ class LuaShell{
 					throw(LuaError());
 			}
 			lua_pop(m_luaState, 1);
+		}
+
+		void abort_run(const char* message)
+		{
+			AbortRun();
 		}
 
 		template <class TVal>
@@ -138,6 +151,7 @@ InitUGPlugin_LuaShell(Registry* reg, string grp)
 		.add_constructor()
 		.add_method("reset", &T::reset)
 		.add_method("run", &T::run)
+		.add_method("abort_run", &T::abort_run)
 		.add_method("set", static_cast<void (T::*)(const char*, double)>(&T::set<double>))
 		.add_method("set", static_cast<void (T::*)(const char*, bool)>(&T::set<bool>))
 		.add_method("set", static_cast<void (T::*)(const char*, const char*)>(&T::set<const char*>))
