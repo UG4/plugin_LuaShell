@@ -6,6 +6,8 @@
 #include "common/profiler/profiler.h"
 #include "registry/class_name_provider.h"
 #include "ug.h"
+#include "lua_shell.h"
+#include "common/util/file_util.h"
 
 using namespace std;
 using namespace ug::bridge;
@@ -23,117 +25,99 @@ int LuaCallStackError( lua_State *L )
     return 1;
 }
 
-class LuaShell{
-	public:
-		LuaShell()
-		{
-			init_lua_state();
+LuaShell::LuaShell()
+{
+	init_lua_state();
+}
+
+void LuaShell::reset()
+{
+	ReleaseDefaultLuaState();
+	init_lua_state();
+}
+
+void LuaShell::parse_file(const char* filename)
+{
+	vector<char> fileBuf;
+	if(ReadFile(filename, fileBuf, true)){
+		if(!fileBuf.empty())
+			run(&fileBuf.front());
+	}
+}
+
+void LuaShell::run(const char* buffer)
+{
+	PROFILE_FUNC();
+	lua_State* L = m_luaState;
+
+	ClearAbortRunFlag();
+	lua_pushcfunction(L, LuaCallStackError);
+
+	int error = luaL_loadbuffer(L, buffer, strlen(buffer), "luashell-run-buffer");
+
+	try{
+		if(error == 0){
+			error = lua_pcall(L, 0, 0, -2);
 		}
+	}
+	catch(SoftAbort& err){
+		UG_LOG("Execution of LuaShell::run aborted with the following message:\n")
+		UG_LOG(err.get_msg() << std::endl);
+	}
 
-		void reset()
-		{
-			ReleaseDefaultLuaState();
-			init_lua_state();
-		}
+	if(error){
+		string msg = lua_tostring(L, -1);
+		lua_pop(L, 1);
+		if(msg.find("__UG__LUA__EMPTY__MSG__") == string::npos)
+			throw(LuaError(msg.c_str()));
+		else
+			throw(LuaError());
+	}
+	lua_pop(m_luaState, 1);
+}
 
-		void run(const char* buffer)
-		{
-			PROFILE_FUNC();
-			lua_State* L = m_luaState;
+void LuaShell::abort_run(const char* message)
+{
+	AbortRun();
+}
 
-			ClearAbortRunFlag();
-			lua_pushcfunction(L, LuaCallStackError);
+void LuaShell::set(const char* name, void* pval, const char* className)
+{
+	LuaParsing<void*>::push(m_luaState, pval, className);
+	lua_setglobal(m_luaState, name);
+}
 
-			int error = luaL_loadbuffer(L, buffer, strlen(buffer), "luashell-run-buffer");
+void LuaShell::set(const char* name, const void* pval, const char* className)
+{
+	LuaParsing<const void*>::push(m_luaState, pval, className);
+	lua_setglobal(m_luaState, name);
+}
 
-			try{
-				if(error == 0){
-					error = lua_pcall(L, 0, 0, -2);
-				}
-			}
-			catch(SoftAbort& err){
-				UG_LOG("Execution of LuaShell::run aborted with the following message:\n")
-				UG_LOG(err.get_msg() << std::endl);
-			}
+void LuaShell::set(const char* name, SmartPtr<void> pval, const char* className)
+{
+	LuaParsing<SmartPtr<void> >::push(m_luaState, pval, className);
+	lua_setglobal(m_luaState, name);
+}
 
-			if(error){
-				string msg = lua_tostring(L, -1);
-				lua_pop(L, 1);
-				if(msg.find("__UG__LUA__EMPTY__MSG__") == string::npos)
-					throw(LuaError(msg.c_str()));
-				else
-					throw(LuaError());
-			}
-			lua_pop(m_luaState, 1);
-		}
+void LuaShell::set(const char* name, ConstSmartPtr<void> pval, const char* className)
+{
+	LuaParsing<ConstSmartPtr<void> >::push(m_luaState, pval, className);
+	lua_setglobal(m_luaState, name);
+}
 
-		void abort_run(const char* message)
-		{
-			AbortRun();
-		}
+void LuaShell::init_lua_state()
+{
+//	instead of the global lua state, one could also use a local one		
+	m_luaState = GetDefaultLuaState();
+//	replace LUAs print function with our own, to use UG_LOG
+	lua_register(m_luaState, "print", UGLuaPrint );
+	lua_register(m_luaState, "print_all", UGLuaPrintAllProcs );
+	lua_register(m_luaState, "write", UGLuaWrite );
 
-		template <class TVal>
-		void set(const char* name, TVal value)
-		{
-			LuaParsing<TVal>::push(m_luaState, value);
-			lua_setglobal(m_luaState, name);
-		}
-
-		void set(const char* name, void* pval, const char* className)
-		{
-			LuaParsing<void*>::push(m_luaState, pval, className);
-			lua_setglobal(m_luaState, name);
-		}
-
-		void set(const char* name, const void* pval, const char* className)
-		{
-			LuaParsing<const void*>::push(m_luaState, pval, className);
-			lua_setglobal(m_luaState, name);
-		}
-
-		void set(const char* name, SmartPtr<void> pval, const char* className)
-		{
-			LuaParsing<SmartPtr<void> >::push(m_luaState, pval, className);
-			lua_setglobal(m_luaState, name);
-		}
-
-		void set(const char* name, ConstSmartPtr<void> pval, const char* className)
-		{
-			LuaParsing<ConstSmartPtr<void> >::push(m_luaState, pval, className);
-			lua_setglobal(m_luaState, name);
-		}
-
-		template <class TVal>
-		TVal get_val(const char* name)
-		{
-			lua_getglobal(m_luaState, name);
-			if(!LuaParsing<TVal>::check(m_luaState, -1)){
-				lua_pop(m_luaState, 1);
-				UG_THROW("LuaShell error: Couldn't convert " << name << " to requested type.");
-			}
-
-			TVal val = LuaParsing<TVal>::get(m_luaState, -1);
-			lua_pop(m_luaState, 1);
-			return val;
-		}
-
-	private:
-		lua_State* m_luaState;
-
-		void init_lua_state()
-		{
-		//	instead of the global lua state, one could also use a local one		
-			m_luaState = GetDefaultLuaState();
-		//	replace LUAs print function with our own, to use UG_LOG
-			lua_register(m_luaState, "print", UGLuaPrint );
-			lua_register(m_luaState, "print_all", UGLuaPrintAllProcs );
-			lua_register(m_luaState, "write", UGLuaWrite );
-
-		//	todo: allow for argv arguments
-			char* argv = 0;
-			SetLuaUGArgs(m_luaState, 0, &argv, 0, 0);
-		}
-};
+//	todo: allow for argv arguments
+	char* argv = 0;
+	SetLuaUGArgs(m_luaState, 0, &argv, 0, 0);
+}
 
 }// namespace LuaShell
 
