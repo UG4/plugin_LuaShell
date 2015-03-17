@@ -63,6 +63,7 @@ void LuaShell::run(const char* buffer)
 	catch(SoftAbort& err){
 		UG_LOG("Execution of LuaShell::run aborted with the following message:\n")
 		UG_LOG(err.get_msg() << std::endl);
+		reset();
 	}
 
 	if(error){
