@@ -39,6 +39,15 @@
 namespace ug{
 namespace luashell{
 
+/** 
+ *  \defgroup lua_shell Lua Shell
+ *  \ingroup plugins
+ *  This plugin provides the 'LuaShell' class through which one can execute
+ *	Lua-Scripts with custom variables.
+ */
+
+/// \addtogroup lua_shell
+/// \{
 class LuaShell{
 	public:
 		LuaShell();
@@ -82,6 +91,7 @@ class LuaShell{
 		void init_lua_state();
 };
 
+/// \}
 }// namespace LuaShell
 }//	end of namespace
 
