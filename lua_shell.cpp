@@ -149,7 +149,7 @@ void LuaShell::init_lua_state()
 
 //	todo: allow for argv arguments
 	char* argv = 0;
-	SetLuaUGArgs(m_luaState, 0, &argv, 0, 0);
+	SetLuaUGArgs(m_luaState, 0, &argv);
 }
 
 }// namespace LuaShell
